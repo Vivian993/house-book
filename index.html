@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我們的家事與記帳簿</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased pb-10">
+
+    <div class="max-w-md mx-auto px-4 pt-6">
+        <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-xs">
+            <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                🏡 甜蜜小家簿
+            </h1>
+            <span id="syncStatus" class="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium animate-pulse">
+                雲端連線中...
+            </span>
+        </div>
+
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 mb-6">
+            <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
+                <button onclick="switchTab('expense')" id="tab-expense" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-xs transition-all">💰 記帳</button>
+                <button onclick="switchTab('chore')" id="tab-chore" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 transition-all">🧹 家事</button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">項目名稱</label>
+                    <input type="text" id="itemName" placeholder="例如：買菜、洗碗、繳電費" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                </div>
+                
+                <div id="amountField">
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">金額 (元)</label>
+                    <input type="number" id="itemAmount" placeholder="請輸入數字" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">執行/記帳人</label>
+                    <select id="person" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm appearance-none">
+                        <option value="老公">老公 🧔</option>
+                        <option value="老婆">老婆 👩</option>
+                    </select>
+                </div>
+
+                <button onclick="addData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl shadow-md transition-all text-sm active:scale-98 mt-2">
+                    確認送出並同步到雲端
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-3 px-1">
+            <h2 class="font-bold text-slate-700">最新紀錄列表</h2>
+            <button onclick="loadFromCloud()" class="text-xs text-blue-600 hover:underline flex items-center gap-1">🔄 手動重新整理</button>
+        </div>
+        
+        <div id="listContainer" class="space-y-2">
+            <p class="text-center text-slate-400 text-sm py-8">正在從雲端載入資料...</p>
+        </div>
+    </div>
+
+    <script>
+        // 這是你們專屬的免費雲端儲存通道（請勿流傳，以免資料被覆蓋）
+        const CLOUD_URL = 'https://kvdb.io/87xJgYgW8m3DqPzA9KzR7t/family_tracker_data';
+        
+        let currentTab = 'expense';
+        let localData = [];
+
+        // 切換分頁
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-expense').className = tab === 'expense' ? 'flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-xs transition-all' : 'flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 transition-all';
+            document.getElementById('tab-chore').className = tab === 'chore' ? 'flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-xs transition-all' : 'flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 transition-all';
+            document.getElementById('amountField').style.display = tab === 'expense' ? 'block' : 'none';
+        }
+
+        // 修改狀態顯示
+        function setStatus(text, isPulse = false) {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.innerText = text;
+            if (isPulse) statusEl.classList.add('animate-pulse');
+            else statusEl.classList.remove('animate-pulse');
+        }
+
+        // 從雲端下載資料
+        async function loadFromCloud() {
+            setStatus('同步中...', true);
+            try {
+                const response = await fetch(CLOUD_URL);
+                if (response.ok) {
+                    localData = await response.json();
+                    renderList();
+                    setStatus('☁️ 雲端已同步');
+                } else if (response.status === 404) {
+                    localData = []; // 第一次使用還沒有資料
+                    renderList();
+                    setStatus('☁️ 雲端全新開通');
+                }
+            } catch (error) {
+                console.error(error);
+                setStatus('❌ 連線失敗，請重試');
+            }
+        }
+
+        // 將資料上傳到雲端
+        async function saveToCloud() {
+            setStatus('正在同步...', true);
+            try {
+                const response = await fetch(CLOUD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(localData)
+                });
+                if (response.ok) {
+                    setStatus('☁️ 雲端已同步');
+                } else {
+                    setStatus('❌ 儲存失敗');
+                }
+            } catch (error) {
+                setStatus('❌ 網路連線錯誤');
+            }
+        }
+
+        // 新增資料
+        function addData() {
+            const name = document.getElementById('itemName').value.trim();
+            const amount = document.getElementById('itemAmount').value;
+            const person = document.getElementById('person').value;
+            const date = new Date().toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit' });
+
+            if (!name) { alert('請填寫項目名稱！'); return; }
+            if (currentTab === 'expense' && !amount) { alert('請填寫金額！'); return; }
+
+            const newItem = {
+                id: Date.now(),
+                type: currentTab,
+                name: name,
+                amount: currentTab === 'expense' ? Number(amount) : null,
+                person: person,
+                date: date
+            };
+
+            localData.unshift(newItem); // 加到最前面
+            renderList();
+            saveToCloud(); // 自動同步到雲端
+
+            // 清空輸入框
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemAmount').value = '';
+        }
+
+        // 刪除項目
+        function deleteItem(id) {
+            if(confirm('確定要刪除這筆紀錄嗎？')) {
+                localData = localData.filter(item => item.id !== id);
+                renderList();
+                saveToCloud();
+            }
+        }
+
+        // 渲染畫面列表
+        function renderList() {
+            const container = document.getElementById('listContainer');
+            if (localData.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">目前沒有任何紀錄喔！</p>';
+                return;
+            }
+
+            container.innerHTML = localData.map(item => {
+                const isExpense = item.type === 'expense';
+                return `
+                    <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-100 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="text-xl p-2 rounded-xl ${isExpense ? 'bg-amber-50' : 'bg-purple-50'}">
+                                ${isExpense ? '💰' : '🧹'}
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800">${item.name}</div>
+                                <div class="text-xs text-slate-400">${item.date} · 由 ${item.person}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            ${isExpense ? `<span class="font-bold text-emerald-600 text-base">-$${item.amount}</span>` : `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-medium">已完成</span>`}
+                            <button onclick="deleteItem(${item.id})" class="text-slate-300 hover:text-red-500 text-sm p-1">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 網頁打開時自動載入
+        window.onload = loadFromCloud;
+    </script>
+</body>
+</html>
