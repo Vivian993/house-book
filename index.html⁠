@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我們的雙人生活管家</title>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f4f7f6; color: #2c3e50; margin: 0; padding: 0; padding-bottom: 60px; }
+        
+        /* 頂部導航 */
+        .header { background: linear-gradient(135deg, #4a7577, #2e4e50); color: white; padding: 20px 15px; text-align: center; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 20px; letter-spacing: 1px; }
+        .sync-status { display: inline-block; font-size: 11px; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; margin-top: 8px; }
+        .status-dot { display: inline-block; width: 8px; height: 8px; background-color: #2ecc71; border-radius: 50%; margin-right: 5px; }
+        .status-dot.syncing { background-color: #f1c40f; animation: blink 1s infinite; }
+        .status-dot.offline { background-color: #e74c3c; }
+
+        /* 儀表板看板 */
+        .container { padding: 15px; max-width: 500px; margin: 0 auto; }
+        .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.03); }
+        .dashboard-grid { display: block; width: 100%; text-align: center; }
+        .db-box { display: inline-block; width: 31%; margin: 1%; vertical-align: top; }
+        .db-title { font-size: 11px; color: #7f8c8d; margin-bottom: 5px; }
+        .db-val { font-size: 16px; font-weight: bold; }
+        .income { color: #2ecc71; }
+        .expense { color: #e74c3c; }
+
+        /* 標籤頁切換 */
+        .tabs { display: block; width: 100%; margin-bottom: 15px; background: #e0e5e4; border-radius: 10px; padding: 4px; text-align: center; }
+        .tab-btn { display: inline-block; width: 32%; padding: 8px 0; border: none; background: transparent; font-size: 14px; font-weight: bold; color: #7f8c8d; border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: white; color: #2e4e50; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* 表單樣式 */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #5c7577; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #d1d8d7; border-radius: 8px; font-size: 14px; background-color: #fafbfc; }
+        .form-control:focus { border-color: #4a7577; outline: none; }
+        .btn-row { display: block; width: 100%; text-align: center; margin-top: 10px; }
+        .btn { display: inline-block; width: 100%; background-color: #4a7577; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn:active { background-color: #2e4e50; }
+
+        /* 選擇人按鈕 */
+        .user-selector { display: block; width: 100%; text-align: justify; }
+        .user-btn { display: inline-block; width: 48%; text-align: center; padding: 10px; border: 1px solid #d1d8d7; border-radius: 8px; background: white; font-size: 14px; cursor: pointer; }
+        .user-btn.active { background: #4a7577; color: white; border-color: #4a7577; font-weight: bold; }
+
+        /* 項目列表 */
+        .list-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #2e4e50; border-left: 4px solid #4a7577; padding-left: 8px; }
+        .item-row { display: block; position: relative; background: #fafbfc; padding: 12px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid #ccc; }
+        .item-row.user-husband { border-left-color: #3498db; }
+        .item-row.user-wife { border-left-color: #e84393; }
+        .item-info { display: block; font-size: 14px; }
+        .item-meta { font-size: 11px; color: #95a5a6; margin-top: 4px; }
+        .item-amount { position: absolute; right: 40px; top: 15px; font-weight: bold; font-size: 15px; }
+        .btn-del { position: absolute; right: 10px; top: 15px; background: none; border: none; color: #e74c3c; font-size: 16px; cursor: pointer; }
+
+        /* 家事卡片 */
+        .chore-item { display: block; position: relative; background: #fafbfc; padding: 15px; border-radius: 10px; margin-bottom: 8px; border: 1px solid #e0e5e4; }
+        .chore-name { font-size: 15px; font-weight: bold; }
+        .chore-status { display: inline-block; padding: 3px 8px; font-size: 11px; border-radius: 50px; font-weight: bold; margin-top: 5px; }
+        .status-pending { background-color: #ffeaa7; color: #d35400; }
+        .status-done { background-color: #badc58; color: #27ae60; text-decoration: line-through; }
+        .btn-toggle-chore { position: absolute; right: 15px; top: 18px; padding: 6px 12px; border-radius: 6px; border: none; background-color: #e0e5e4; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .btn-toggle-chore.done { background-color: #4a7577; color: white; }
+
+        .hidden { display: none; }
+        @keyframes blink { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>💞 我們的雙人生活管家</h1>
+        <div class="sync-status">
+            <span id="sync-dot" class="status-dot"></span>
+            <span id="sync-text">本地運作中</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="dashboard-grid">
+                <div class="db-box">
+                    <div class="db-title">本月總收入</div>
+                    <div id="total-income" class="db-val income">$0</div>
+                </div>
+                <div class="db-box">
+                    <div class="db-title">本月總支出</div>
+                    <div id="total-expense" class="db-val expense">$0</div>
+                </div>
+                <div class="db-box">
+                    <div class="db-title">剩餘結餘</div>
+                    <div id="total-balance" class="db-val" style="color:#2e4e50;">$0</div>
+                </div>
+            </div>
+            <div id="user-ratio-text" style="font-size: 11px; color:#7f8c8d; text-align:center; margin-top:10px; border-top:1px dashed #e0e5e4; padding-top:8px;">
+                老公支出: $0 | 老婆支出: $0
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('ledger')">💰 雙人記帳</button>
+            <button class="tab-btn" onclick="switchTab('chores')">🧹 家事牆</button>
+            <button class="tab-btn" onclick="switchTab('sync')">⚙️ 雲端設定</button>
+        </div>
+
+        <div id="tab-ledger">
+            <div class="card">
+                <div class="list-title">新增日常收支</div>
+                <div class="form-group">
+                    <label>記帳類別</label>
+                    <div class="user-selector">
+                        <button id="type-expense" class="user-btn active" style="width:49%;" onclick="setTxType('expense')">支出</button>
+                        <button id="type-income" class="user-btn" style="width:49%;" onclick="setTxType('income')">收入</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>付款/收款人</label>
+                    <div class="user-selector">
+                        <button id="user-husband" class="user-btn active" onclick="setTxUser('老公')">👦 老公</button>
+                        <button id="user-wife" class="user-btn" onclick="setTxUser('老婆')">👧 老婆</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>金額 ($)</label>
+                    <input type="number" id="tx-amount" class="form-control" placeholder="請輸入金額" inputmode="numeric">
+                </div>
+                <div class="form-group">
+                    <label>分類</label>
+                    <select id="tx-category" class="form-control">
+                        <option value="食">🍔 餐飲飲食</option>
+                        <option value="衣">👕 服飾基本</option>
+                        <option value="住">🏠 房屋居家</option>
+                        <option value="行">🚗 交通出行</option>
+                        <option value="育">👶 育兒寶貝</option>
+                        <option value="樂">🎉 休閒娛樂</option>
+                        <option value="其他">📦 其他雜項</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>備註說明</label>
+                    <input type="text" id="tx-note" class="form-control" placeholder="例如：買菜、午餐、尿布...">
+                </div>
+                <button class="btn" onclick="addTransaction()">📌 記下一筆</button>
+            </div>
+
+            <div class="card">
+                <div class="list-title">歷史收支明細</div>
+                <div id="ledger-list">
+                    </div>
+            </div>
+        </div>
+
+        <div id="tab-chores" class="hidden">
+            <div class="card">
+                <div class="list-title">指派新家事任務</div>
+                <div class="form-group">
+                    <label>家事名稱</label>
+                    <input type="text" id="chore-name" class="form-control" placeholder="例如：洗衣服、倒垃圾、拖地...">
+                </div>
+                <div class="form-group">
+                    <label>負責人</label>
+                    <div class="user-selector">
+                        <button id="chore-user-husband" class="user-btn active" onclick="setChUser('老公')">👦 老公</button>
+                        <button id="chore-user-wife" class="user-btn" onclick="setChUser('老婆')">👧 老婆</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>頻率</label>
+                    <select id="chore-period" class="form-control">
+                        <option value="天天">📅 天天要做</option>
+                        <option value="每週">🗓️ 每週固定</option>
+                        <option value="定期">⏰ 定期維護</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="addChore()">➕ 新增家事</button>
+            </div>
+
+            <div class="card">
+                <div class="list-title">今日家事任務牆</div>
+                <div id="chores-list">
+                    </div>
+            </div>
+        </div>
+
+        <div id="tab-sync" class="hidden">
+            <div class="card">
+                <div class="list-title">雙人雲端連線通道</div>
+                <p style="font-size:13px; color:#5c7577; line-height:1.5;">為了讓你跟太太的手機資料同步，請在雙方手機的這頁填入<b>完全相同的暗號</b>。</p>
+                
+                <div class="form-group">
+                    <label>🔑 專屬家庭同步暗號 (建議用純英文或數字)</label>
+                    <input type="text" id="sync-key-input" class="form-control" placeholder="例如：ourhouse2026" onchange="updateSyncKey(this.value)">
+                </div>
+                
+                <div style="margin-top:15px;">
+                    <button class="btn" style="background-color:#2ecc71;" onclick="syncWithCloud()">🔄 立即手動同步雲端</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="list-title">同步使用教學</div>
+                <ol style="font-size:12px; color:#7f8c8d; line-height:1.6; padding-left:20px;">
+                    <li>在上方欄位自己想一個暗號（例如：<span style="color:#e67e22;font-weight:bold;">love520</span>）。</li>
+                    <li>按一下「立即手動同步雲端」，此時你的資料已上傳。</li>
+                    <li>將同一個網址傳給太太，請她也在手機的雲端設定填入一模一樣的暗號（<span style="color:#e67e22;font-weight:bold;">love520</span>）。</li>
+                    <li>此後兩邊只要點擊同步，資料就會自動整合成最新的狀態囉！</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 核心資料庫結構
+        let globalData = {
+            ledger: [],
+            chores: [],
+            lastUpdated: Date.now()
+        };
+
+        let currentTxType = 'expense';
+        let currentTxUser = '老公';
+        let currentChUser = '老公';
+        let familySyncKey = '';
+
+        // 雲端儲存免費 API 網址 (使用匿名 KV 儲存)
+        const kvApiUrl = "https://kvdb.io/A4G7zB7sH8kL1mN3pQ9R/"; 
+
+        // 初始化載入
+        window.onload = function() {
+            // 自動讀取本地舊資料
+            const localData = localStorage.getItem('sweet_home_data');
+            if (localData) {
+                globalData = JSON.parse(localData);
+            }
+            
+            // 自動生成或讀取同步密碼
+            familySyncKey = localStorage.getItem('family_sync_key') || '';
+            document.getElementById('sync-key-input').value = familySyncKey;
+
+            // 如果本來就有設定暗號，自動嘗試同步一次
+            if (familySyncKey) {
+                syncWithCloud();
+            } else {
+                updateUI();
+            }
+        };
+
+        // 分頁切換
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-ledger').classList.add('hidden');
+            document.getElementById('tab-chores').classList.add('hidden');
+            document.getElementById('tab-sync').classList.add('hidden');
+
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+        }
+
+        // 記帳按鈕設定
+        function setTxType(type) {
+            currentTxType = type;
+            document.getElementById('type-expense').classList.toggle('active', type === 'expense');
+            document.getElementById('type-income').classList.toggle('active', type === 'income');
+        }
+        function setTxUser(user) {
+            currentTxUser = user;
+            document.getElementById('user-husband').classList.toggle('active', user === '老公');
+            document.getElementById('user-wife').classList.toggle('active', user === '老婆');
+        }
+        function setChUser(user) {
+            currentChUser = user;
+            document.getElementById('chore-user-husband').classList.toggle('active', user === '老公');
+            document.getElementById('chore-user-wife').classList.toggle('active', user === '老婆');
+        }
+
+        // 更新同步金鑰
+        function updateSyncKey(val) {
+            familySyncKey = val.trim().replace(/[^a-zA-Z0-9]/g, ""); // 只允許英文數字
+            localStorage.setItem('family_sync_key', familySyncKey);
+            if(familySyncKey) syncWithCloud();
+        }
+
+        // 新增記帳明細
+        function addTransaction() {
+            const amountInput = document.getElementById('tx-amount');
+            const categoryInput = document.getElementById('tx-category');
+            const noteInput = document.getElementById('tx-note');
+
+            const amount = parseFloat(amountInput.value);
+            if (!amount || amount <= 0) {
+                alert('請輸入正確的金額！');
+                return;
+            }
+
+            const item = {
+                id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                type: currentTxType,
+                user: currentTxUser,
+                amount: amount,
+                category: categoryInput.value,
+                note: noteInput.value || categoryInput.value,
+                time: new Date().toLocaleDateString('zh-TW', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})
+            };
+
+            globalData.ledger.unshift(item);
+            saveAndRefresh();
+
+            // 清空輸入欄
+            amountInput.value = '';
+            noteInput.value = '';
+            
+            // 自動觸發背景上傳
+            autoBackgroundSync();
+        }
+
+        // 刪除記帳
+        function deleteTx(id) {
+            globalData.ledger = globalData.ledger.filter(item => item.id !== id);
+            saveAndRefresh();
+            autoBackgroundSync();
+        }
+
+        // 新增家事
+        function addChore() {
+            const nameInput = document.getElementById('chore-name');
+            const periodInput = document.getElementById('chore-period');
+
+            if (!nameInput.value.trim()) {
+                alert('請輸入家事名稱！');
+                return;
+            }
+
+            const chore = {
+                id: 'ch_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                name: nameInput.value.trim(),
+                user: currentChUser,
+                period: periodInput.value,
+                status: 'pending', // pending | done
+                updatedTime: Date.now()
+            };
+
+            globalData.chores.unshift(chore);
+            saveAndRefresh();
+            nameInput.value = '';
+            autoBackgroundSync();
+        }
+
+        // 切換家事狀態
+        function toggleChore(id) {
+            globalData.chores = globalData.chores.map(ch => {
+                if (ch.id === id) {
+                    ch.status = ch.status === 'pending' ? 'done' : 'pending';
+                    ch.updatedTime = Date.now();
+                }
+                return ch;
+            });
+            saveAndRefresh();
+            autoBackgroundSync();
+        }
+
+        // 儲存至本機並重新渲染 UI
+        function saveAndRefresh() {
+            globalData.lastUpdated = Date.now();
+            localStorage.setItem('sweet_home_data', JSON.stringify(globalData));
+            updateUI();
+        }
+
+        // 重新渲染畫面 UI
+        function updateUI() {
+            let totalIncome = 0;
+            let totalExpense = 0;
+            let husbandExpense = 0;
+            let wifeExpense = 0;
+
+            // 1. 渲染記帳清單
+            const ledgerList = document.getElementById('ledger-list');
+            ledgerList.innerHTML = '';
+            
+            if (globalData.ledger.length === 0) {
+                ledgerList.innerHTML = '<div style="text-align:center; color:#aaa; font-size:13px; padding:20px;">尚無記帳紀錄</div>';
+            }
+
+            globalData.ledger.forEach(item => {
+                const isExpense = item.type === 'expense';
+                if (isExpense) {
+                    totalExpense += item.amount;
+                    if (item.user === '老公') husbandExpense += item.amount;
+                    else wifeExpense += item.amount;
+                } else {
+                    totalIncome += item.amount;
+                }
+
+                const userClass = item.user === '老公' ? 'user-husband' : 'user-wife';
+                const sign = isExpense ? '-' : '+';
+                const color = isExpense ? '#e74c3c' : '#2ecc71';
+
+                ledgerList.innerHTML += `
+                    <div class="item-row ${userClass}">
+                        <div class="item-info"><b>[${item.category}]</b> ${item.note}</div>
+                        <div class="item-meta">付款人: ${item.user} | ${item.time}</div>
+                        <div class="item-amount" style="color: ${color}">${sign}$${item.amount}</div>
+                        <button class="btn-del" onclick="deleteTx('${item.id}')">×</button>
+                    </div>
+                `;
+            });
+
+            // 2. 渲染家事牆
+            const choresList = document.getElementById('chores-list');
+            choresList.innerHTML = '';
+
+            if (globalData.chores.length === 0) {
+                choresList.innerHTML = '<div style="text-align:center; color:#aaa; font-size:13px; padding:20px;">目前沒有家事任務</div>';
+            }
+
+            globalData.chores.forEach(ch => {
+                const statusClass = ch.status === 'done' ? 'status-done' : 'status-pending';
+                const statusText = ch.status === 'done' ? '已完成' : '待處理';
+                const btnText = ch.status === 'done' ? '重設' : '完成';
+                const btnClass = ch.status === 'done' ? '' : 'done';
+
+                choresList.innerHTML += `
+                    <div class="chore-item">
+                        <div class="chore-name">${ch.name}</div>
+                        <div style="font-size:11px; color:#7f8c8d; margin-top:4px;">負責人：${ch.user} | 頻率：${ch.period}</div>
+                        <span class="chore-status ${statusClass}">${statusText}</span>
+                        <button class="btn-toggle-chore ${btnClass}" onclick="toggleChore('${ch.id}')">${btnText}</button>
+                    </div>
+                `;
+            });
+
+            // 3. 更新上方儀表板
+            document.getElementById('total-income').innerText = '$' + totalIncome;
+            document.getElementById('total-expense').innerText = '$' + totalExpense;
+            document.getElementById('total-balance').innerText = '$' + (totalIncome - totalExpense);
+            document.getElementById('user-ratio-text').innerText = `👦 老公支出: $${husbandExpense} | 👧 老婆支出: $${wifeExpense}`;
+        }
+
+        // 核心雲端同步機制：雙向融合演算法
+        async function syncWithCloud() {
+            if (!familySyncKey) {
+                setSyncStatus('offline', '尚未填入家庭同步暗號');
+                return;
+            }
+
+            setSyncStatus('syncing', '雲端資料同步中...');
+
+            try {
+                // 1. 抓取雲端目前的資料庫項目
+                const res = await fetch(kvApiUrl + familySyncKey);
+                
+                if (res.status === 404) {
+                    // 雲端還沒有這個 Key，直接把本地端上傳上去
+                    await uploadToCloud();
+                    setSyncStatus('online', '首次雲端同步成功！');
+                    return;
+                }
+
+                const cloudData = await res.json();
+                
+                // 2. 智慧型資料融合 (Smart Merge)
+                let isMerged = false;
+
+                // 記帳融合：比對 ID，留存所有不重複的項目
+                let mergedLedger = [...globalData.ledger];
+                cloudData.ledger.forEach(cItem => {
+                    if (!mergedLedger.some(lItem => lItem.id === cItem.id)) {
+                        mergedLedger.push(cItem);
+                        isMerged = true;
+                    }
+                });
+                // 按照時間重新排列
+                mergedLedger.sort((a, b) => b.id.localeCompare(a.id));
+
+                // 家事融合：留存最新的家事狀態
+                let mergedChores = [...globalData.chores];
+                cloudData.chores.forEach(cChore => {
+                    const localChoreIndex = mergedChores.findIndex(lChore => lChore.id === cChore.id);
+                    if (localChoreIndex === -1) {
+                        mergedChores.push(cChore);
+                        isMerged = true;
+                    } else {
+                        // 如果兩邊都有，誰的修改時間(updatedTime)最新就聽誰的
+                        if (cChore.updatedTime > mergedChores[localChoreIndex].updatedTime) {
+                            mergedChores[localChoreIndex] = cChore;
+                            isMerged = true;
+                        }
+                    }
+                });
+
+                // 3. 更新本地端並儲存
+                globalData.ledger = mergedLedger;
+                globalData.chores = mergedChores;
+                globalData.lastUpdated = Math.max(globalData.lastUpdated, cloudData.lastUpdated || 0);
+                
+                localStorage.setItem('sweet_home_data', JSON.stringify(globalData));
+                updateUI();
+
+                // 4. 如果本地有更新過，將最新融合的結果同步推回雲端
+                await uploadToCloud();
+                setSyncStatus('online', '已與雲端同步（' + new Date().toLocaleTimeString() + '）');
+
+            } catch (err) {
+                console.error(err);
+                setSyncStatus('offline', '同步失敗，請檢查網路連線');
+            }
+        }
+
+        // 上傳資料至雲端
+        async function uploadToCloud() {
+            await fetch(kvApiUrl + familySyncKey, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(globalData)
+            });
+        }
+
+        // 背景自動同步
+        function autoBackgroundSync() {
+            if (familySyncKey) {
+                uploadToCloud().then(() => {
+                    setSyncStatus('online', '變更已自動同步');
+                }).catch(() => {
+                    setSyncStatus('offline', '無法同步到雲端');
+                });
+            }
+        }
+
+        // 更新頂部小燈泡狀態
+        function setSyncStatus(type, text) {
+            const dot = document.getElementById('sync-dot');
+            const txt = document.getElementById('sync-text');
+            
+            dot.className = 'status-dot';
+            txt.innerText = text;
+
+            if (type === 'syncing') dot.classList.add('syncing');
+            if (type === 'offline') dot.classList.add('offline');
+        }
+    </script>
+</body>
+</html>
